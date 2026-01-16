@@ -358,6 +358,24 @@ async def admin_export_subscribers(username: str = Depends(verify_admin)):
         csv_content += f"{s['email']},{s['subscribed_at']}\n"
     return {"csv": csv_content, "count": len(subscribers)}
 
+# Admin - Export registrations as CSV
+@api_router.get("/admin/registrations/export")
+async def admin_export_registrations(username: str = Depends(verify_admin)):
+    registrations = await db.registrations.find().to_list(10000)
+    workshops = await db.workshops.find().to_list(10000)
+    workshop_map = {w['id']: w['title'] for w in workshops}
+    
+    csv_content = "name,email,phone,message,workshop,registered_at\n"
+    for r in registrations:
+        name = r.get('name', '').replace(',', ' ')
+        email = r.get('email', '')
+        phone = r.get('phone', '') or ''
+        message = (r.get('message', '') or '').replace(',', ' ').replace('\n', ' ')
+        workshop = workshop_map.get(r.get('workshop_id', ''), 'Unknown')
+        created = r.get('created_at', '')
+        csv_content += f"{name},{email},{phone},{message},{workshop},{created}\n"
+    return {"csv": csv_content, "count": len(registrations)}
+
 # Admin - Site Settings
 @api_router.put("/admin/settings", response_model=SiteSettings)
 async def admin_update_settings(settings: SiteSettingsUpdate, username: str = Depends(verify_admin)):
