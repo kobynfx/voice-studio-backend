@@ -11,6 +11,8 @@ from typing import List, Optional
 import uuid
 from datetime import datetime
 import secrets
+import csv
+from io import StringIO
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -365,15 +367,25 @@ async def admin_export_registrations(username: str = Depends(verify_admin)):
     workshops = await db.workshops.find().to_list(10000)
     workshop_map = {w['id']: w['title'] for w in workshops}
     
-    csv_content = "name,email,phone,message,workshop,registered_at\n"
+    # Use StringIO to write CSV properly
+    output = StringIO()
+    writer = csv.writer(output, quoting=csv.QUOTE_MINIMAL)
+    
+    # Write header
+    writer.writerow(['name', 'email', 'phone', 'message', 'workshop', 'registered_at'])
+    
+    # Write data rows
     for r in registrations:
-        name = r.get('name', '').replace(',', ' ')
-        email = r.get('email', '')
-        phone = r.get('phone', '') or ''
-        message = (r.get('message', '') or '').replace(',', ' ').replace('\n', ' ')
-        workshop = workshop_map.get(r.get('workshop_id', ''), 'Unknown')
-        created = r.get('created_at', '')
-        csv_content += f"{name},{email},{phone},{message},{workshop},{created}\n"
+        writer.writerow([
+            r.get('name', ''),
+            r.get('email', ''),
+            r.get('phone', '') or '',
+            r.get('message', '') or '',
+            workshop_map.get(r.get('workshop_id', ''), 'Unknown'),
+            r.get('created_at', '')
+        ])
+    
+    csv_content = output.getvalue()
     return {"csv": csv_content, "count": len(registrations)}
 
 # Admin - Site Settings
